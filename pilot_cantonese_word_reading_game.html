@@ -1,0 +1,1302 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>小機長大闖關：粵語文字朗讀遊戲</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Noto+Sans+TC:wght@500;700;900&display=swap');
+
+    body {
+      font-family: 'Fredoka', 'Noto Sans TC', sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    .glass-card {
+      background: rgba(255, 255, 255, 0.88);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+
+    .airplane-btn {
+      transition: all 0.2s ease;
+      box-shadow: 0 6px 0 #d97706, 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+    }
+
+    .airplane-btn:active {
+      transform: translateY(4px);
+      box-shadow: 0 2px 0 #d97706, 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+    }
+
+    .pulse-mic {
+      animation: pulse-ring 1.5s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+    }
+
+    @keyframes pulse-ring {
+      0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+      70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+      100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+    }
+
+    @keyframes pin-bounce {
+      0%, 100% { transform: translateY(0) scale(1); }
+      50% { transform: translateY(-8px) scale(1.05); }
+    }
+
+    .pin-bounce {
+      animation: pin-bounce 2s infinite ease-in-out;
+    }
+
+    /* Horizontal Boat Sail Animation */
+    @keyframes boat-sail-horizontal {
+      0% {
+        transform: translateX(-100px);
+      }
+      50% {
+        transform: translateX(450px);
+      }
+      100% {
+        transform: translateX(1100px);
+      }
+    }
+
+    .animate-boat-horizontal {
+      animation: boat-sail-horizontal 22s linear infinite;
+    }
+
+    /* Word List Review Styles */
+    .word-review-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+      gap: 10px;
+      max-height: 200px;
+      overflow-y: auto;
+      padding: 8px;
+      background: rgba(241, 245, 249, 0.8);
+      border-radius: 16px;
+      border: 2px dashed #cbd5e1;
+    }
+
+    .word-review-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 8px 6px;
+      border-radius: 12px;
+      background: white;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+      position: relative;
+      border: 2px solid transparent;
+    }
+
+    .word-review-card.correct {
+      border-color: #22c55e;
+      background: #f0fdf4;
+    }
+
+    .word-review-card.incorrect {
+      border-color: #ef4444;
+      background: #fef2f2;
+    }
+
+    .word-status-badge {
+      position: absolute;
+      top: -6px;
+      right: -6px;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      color: white;
+      font-weight: bold;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+    }
+
+    .badge-correct { background-color: #22c55e; }
+    .badge-incorrect { background-color: #ef4444; }
+  </style>
+</head>
+<body class="bg-slate-900 text-slate-100 h-screen w-screen overflow-hidden flex flex-col">
+
+  <header class="h-16 bg-sky-900/90 border-b border-sky-400/30 px-4 flex items-center justify-between z-20 shadow-lg">
+    <div class="flex items-center space-x-3">
+      <div class="w-10 h-10 rounded-full bg-amber-400 border-2 border-amber-200 flex items-center justify-center text-slate-900 text-xl font-black shadow">
+        ✈️
+      </div>
+      <div>
+        <h1 id="pilotDisplayName" class="font-bold text-base sm:text-lg text-amber-300 leading-tight">小機長: 未登入</h1>
+        <p id="pilotClassDisplay" class="text-xs text-sky-200">班別學號: --</p>
+      </div>
+    </div>
+
+    <div class="flex items-center space-x-2 sm:space-x-4">
+      <!-- 1. Interactive Badge/Button for Student Records -->
+      <button onclick="openStudentRecordsModal()" class="bg-sky-950/80 hover:bg-sky-800 border border-sky-400/40 px-3 py-1.5 rounded-full flex items-center space-x-2 transition cursor-pointer shadow">
+        <span class="text-amber-400 text-lg">⭐</span>
+        <span id="destCompletedBadge" class="text-xs sm:text-sm font-bold text-sky-100">已成功挑戰 0 個目的地</span>
+      </button>
+
+      <!-- 2. "機長匯集" Button on the left of "教師編輯" -->
+      <button onclick="openPilotsDirectoryModal()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-xl font-bold text-xs sm:text-sm flex items-center space-x-1.5 transition shadow-lg border border-indigo-400">
+        <i class="fa-solid fa-users"></i>
+        <span class="hidden sm:inline">機長匯集</span>
+      </button>
+
+      <button onclick="openTeacherModal()" class="bg-amber-500 hover:bg-amber-400 text-slate-950 px-3 py-1.5 rounded-xl font-bold text-xs sm:text-sm flex items-center space-x-1.5 transition shadow-lg border border-amber-300">
+        <i class="fa-solid fa-gear"></i>
+        <span class="hidden sm:inline">教師編輯</span>
+      </button>
+
+      <button onclick="handleLogout()" class="bg-rose-600 hover:bg-rose-500 text-white w-9 h-9 rounded-xl flex items-center justify-center transition border border-rose-400" title="登出">
+        <i class="fa-solid fa-right-from-bracket"></i>
+      </button>
+    </div>
+  </header>
+
+  <main class="flex-1 relative overflow-hidden flex flex-col">
+
+    <!-- VIEW 1: LOGIN BOARDING PASS -->
+    <section id="loginView" class="w-full h-full flex flex-col items-center justify-center p-4 relative overflow-hidden bg-cover bg-center">
+      <div class="absolute inset-0 bg-gradient-to-b from-sky-400 via-sky-300 to-indigo-500"></div>
+      <div class="absolute top-10 left-10 text-white/20 text-8xl"><i class="fa-solid fa-cloud"></i></div>
+      <div class="absolute bottom-10 right-10 text-white/20 text-9xl"><i class="fa-solid fa-cloud"></i></div>
+
+      <div class="glass-card w-full max-w-md rounded-3xl p-6 sm:p-8 relative z-10 text-slate-800 shadow-2xl border-4 border-white/80">
+        <div class="flex items-center justify-between border-b-2 border-dashed border-sky-300 pb-4 mb-6">
+          <div>
+            <span class="bg-amber-400 text-amber-950 text-xs font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">BOARDING PASS</span>
+            <h2 class="text-2xl font-black text-sky-950 mt-1">✈️ 機長登入</h2>
+          </div>
+          <div class="text-right">
+            <p class="text-xs font-bold text-sky-700">FLIGHT</p>
+            <p class="text-lg font-black text-amber-600">HK-888</p>
+          </div>
+        </div>
+
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-bold text-sky-900 mb-1.5" for="studentNameInput">
+              <i class="fa-solid fa-user-astronaut text-sky-600 mr-1"></i> 學生簡稱
+            </label>
+            <input type="text" id="studentNameInput" placeholder="例如：小明 / Alex" 
+              class="w-full px-4 py-3 rounded-xl border-2 border-sky-200 focus:border-amber-400 focus:ring-2 focus:ring-amber-300 text-lg font-bold text-slate-800 outline-none transition bg-white/90">
+          </div>
+
+          <div>
+            <label class="block text-sm font-bold text-sky-900 mb-1.5" for="studentClassInput">
+              <i class="fa-solid fa-id-card text-sky-600 mr-1"></i> 班別學號
+            </label>
+            <input type="text" id="studentClassInput" placeholder="例如：1A05" 
+              class="w-full px-4 py-3 rounded-xl border-2 border-sky-200 focus:border-amber-400 focus:ring-2 focus:ring-amber-300 text-lg font-bold text-slate-800 outline-none transition bg-white/90">
+          </div>
+
+          <button onclick="handleLogin()" 
+            class="airplane-btn w-full mt-6 bg-amber-400 hover:bg-amber-300 text-amber-950 font-black text-xl py-4 rounded-2xl flex items-center justify-center space-x-2 border-2 border-amber-200 cursor-pointer">
+            <span>開始飛行任務</span>
+            <i class="fa-solid fa-plane-up text-2xl"></i>
+          </button>
+        </div>
+
+        <div class="mt-6 pt-4 border-t border-slate-200 flex items-center justify-between text-slate-400">
+          <span class="text-xs font-mono">GATE A1 • CTI-AIRPORTS</span>
+          <div class="flex space-x-1 h-6 items-center">
+            <div class="w-1 h-full bg-slate-400"></div>
+            <div class="w-2 h-full bg-slate-400"></div>
+            <div class="w-0.5 h-full bg-slate-400"></div>
+            <div class="w-1.5 h-full bg-slate-400"></div>
+            <div class="w-1 h-full bg-slate-400"></div>
+            <div class="w-2 h-full bg-slate-400"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW 2: ROUTE MAP VIEW -->
+    <section id="mapView" class="hidden w-full h-full relative bg-slate-900 flex flex-col overflow-hidden">
+      <div class="relative w-full flex-1 bg-gradient-to-b from-sky-400 via-sky-300 to-indigo-300 overflow-hidden">
+        <svg class="absolute inset-0 w-full h-full object-cover" viewBox="0 0 1000 600" preserveAspectRatio="xMidYMid slice">
+          <defs>
+            <!-- Ocean Waves Pattern -->
+            <pattern id="seaPattern" x="0" y="0" width="40" height="40" patternUnits="userSpaceOnUse">
+              <path d="M 0 20 Q 10 15, 20 20 T 40 20" fill="none" stroke="rgba(255, 255, 255, 0.25)" stroke-width="2"/>
+            </pattern>
+            <!-- Land Texture Pattern -->
+            <linearGradient id="landGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#4ade80"/>
+              <stop offset="50%" stop-color="#22c55e"/>
+              <stop offset="100%" stop-color="#16a34a"/>
+            </linearGradient>
+            <linearGradient id="coastGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#fef08a"/>
+              <stop offset="100%" stop-color="#fde047"/>
+            </linearGradient>
+          </defs>
+
+          <!-- Sea Texture Layer -->
+          <rect width="1000" height="600" fill="url(#seaPattern)" />
+
+          <!-- Outer Coastal Buffer Layer -->
+          <g fill="none" stroke="url(#coastGrad)" stroke-width="12" stroke-linejoin="round" opacity="0.8">
+            <path d="M -20,-20 L 520,-20 C 500,80 480,140 430,220 C 390,280 340,320 300,380 C 270,430 230,480 200,560 L 170,620 L -20,620 Z" />
+            <path d="M 520,110 C 570,120 600,160 580,240 C 550,270 510,260 490,230 C 480,190 490,150 520,110 Z" />
+            <path d="M 620,110 C 690,100 810,130 840,210 C 860,260 780,310 710,330 C 660,320 620,250 620,110 Z" />
+            <path d="M 610,290 C 660,280 670,340 620,360 C 580,350 580,310 610,290 Z" />
+            <path d="M 515,285 C 540,280 545,305 525,315 C 505,315 500,295 515,285 Z" />
+            <path d="M 425,380 C 455,375 465,405 440,420 C 415,420 410,395 425,380 Z" />
+            <path d="M 230,430 C 260,425 270,460 245,475 C 220,470 215,445 230,430 Z" />
+          </g>
+
+          <!-- Main Cartoon Landmasses -->
+          <g fill="url(#landGrad)" stroke="#15803d" stroke-width="4" stroke-linejoin="round">
+            <path d="M -20,-20 L 520,-20 C 500,80 480,140 430,220 C 390,280 340,320 300,380 C 270,430 230,480 200,560 L 170,620 L -20,620 Z" />
+            <path d="M 520,110 C 570,120 600,160 580,240 C 550,270 510,260 490,230 C 480,190 490,150 520,110 Z" />
+            <path d="M 620,110 C 690,100 810,130 840,210 C 860,260 780,310 710,330 C 660,320 620,250 620,110 Z" />
+            <path d="M 610,290 C 660,280 670,340 620,360 C 580,350 580,310 610,290 Z" />
+            <path d="M 515,285 C 540,280 545,305 525,315 C 505,315 500,295 515,285 Z" />
+            <path d="M 425,380 C 455,375 465,405 440,420 C 415,420 410,395 425,380 Z" />
+            <path d="M 230,430 C 260,425 270,460 245,475 C 220,470 215,445 230,430 Z" />
+          </g>
+
+          <!-- Mountain Ranges -->
+          <g fill="#166534" stroke="#052e16" stroke-width="2">
+            <polygon points="730,220 745,190 760,220" />
+            <polygon points="750,225 765,185 780,225" />
+            <polygon points="120,220 140,180 160,220" />
+            <polygon points="150,230 175,185 200,230" />
+            <polygon points="180,240 200,195 220,240" />
+          </g>
+
+          <!-- Snowcaps -->
+          <g fill="#ffffff">
+            <polygon points="740,200 745,190 750,200" />
+            <polygon points="760,196 765,185 770,196" />
+          </g>
+
+          <!-- Compass Rose -->
+          <g transform="translate(920, 510)">
+            <circle cx="0" cy="0" r="32" fill="rgba(255, 255, 255, 0.85)" stroke="#0284c7" stroke-width="3" />
+            <polygon points="0,-25 6,-6 25,0 6,6 0,25 -6,6 -25,0 -6,-6" fill="#f59e0b" />
+            <polygon points="0,-25 0,0 25,0" fill="#d97706" />
+            <polygon points="0,25 0,0 -25,0" fill="#d97706" />
+            <text x="-4" y="-27" font-weight="900" font-size="12" fill="#0369a1">N</text>
+          </g>
+
+          <!-- Sea Decorators -->
+          <g font-size="28" opacity="0.85">
+            <g class="animate-boat-horizontal">
+              <text x="0" y="555">⛵</text>
+            </g>
+            <text x="700" y="460" class="animate-pulse">🐳</text>
+            <text x="150" y="580">🌴</text>
+            <text x="880" y="110">🌸</text>
+          </g>
+        </svg>
+
+        <!-- Base Airport Origin Pin: Hong Kong -->
+        <div class="absolute left-[27.5%] top-[66.5%] -translate-x-1/2 -translate-y-1/2 z-10 flex flex-col items-center">
+          <div class="w-11 h-11 rounded-full bg-rose-600 border-4 border-white text-white flex items-center justify-center font-black text-lg shadow-xl animate-pulse">
+            <i class="fa-solid fa-house-chimney"></i>
+          </div>
+          <span class="bg-rose-950/90 text-white text-[11px] font-black px-2 py-0.5 rounded-full mt-1 border border-rose-400 shadow">
+            起飛基地：香港 🇭🇰
+          </span>
+        </div>
+
+        <svg id="flightPathsSvg" class="absolute inset-0 w-full h-full pointer-events-none z-0"></svg>
+        <div id="mapPinsContainer" class="absolute inset-0 z-10 pointer-events-auto"></div>
+      </div>
+    </section>
+
+    <!-- VIEW 3: GAME STAGE -->
+    <section id="gameView" class="hidden w-full h-full flex flex-col bg-slate-900 relative">
+      <div class="relative w-full h-[52%] bg-sky-200 border-b-4 border-amber-400 overflow-hidden">
+        <div class="absolute top-3 left-4 z-10 flex items-center space-x-2">
+          <span id="stageBadgeText" class="bg-slate-900/85 text-amber-300 font-black text-xs sm:text-sm px-3 py-1.5 rounded-full border border-amber-400 shadow-lg flex items-center gap-2">
+            <i class="fa-solid fa-plane-circle-check text-amber-400"></i>
+            <span>階段 1/3：行李托運中</span>
+          </span>
+          <span id="stageTimerBadge" class="bg-sky-950/85 text-sky-200 font-bold text-xs px-3 py-1.5 rounded-full border border-sky-400 shadow">
+            ⏱️ 用時: 0.0s
+          </span>
+        </div>
+
+        <button onclick="exitToMap()" class="absolute top-3 right-4 z-10 bg-slate-900/80 hover:bg-slate-900 text-white text-xs font-bold px-3 py-1.5 rounded-full border border-white/40 flex items-center space-x-1.5 transition">
+          <i class="fa-solid fa-map-location-dot text-amber-400"></i>
+          <span>返回地圖</span>
+        </button>
+
+        <canvas id="stageCanvas" class="w-full h-full block"></canvas>
+      </div>
+
+      <div class="w-full h-[48%] bg-slate-950 flex flex-col items-center justify-between p-3 sm:p-5 relative">
+        <div class="w-full max-w-xl bg-slate-800 h-3 rounded-full overflow-hidden border border-slate-700 shadow-inner">
+          <div id="wordProgressBar" class="h-full bg-gradient-to-r from-amber-500 to-amber-300 w-0 transition-all duration-300"></div>
+        </div>
+
+        <div class="relative w-full max-w-xl h-28 sm:h-36 bg-gradient-to-b from-white to-slate-100 rounded-3xl border-4 border-sky-400 shadow-2xl flex items-center justify-center p-2 text-center">
+          <span id="currentWordDisplay" class="text-5xl sm:text-7xl font-black text-slate-900 tracking-wider">
+            準備
+          </span>
+          <div id="speechMicIndicator" class="absolute bottom-2 right-3 flex items-center space-x-1.5 bg-slate-200/80 px-2.5 py-1 rounded-full">
+            <div id="micDot" class="w-3 h-3 rounded-full bg-rose-500 pulse-mic"></div>
+            <span id="micStatusLabel" class="text-[11px] font-bold text-slate-700">廣東話辨識中</span>
+          </div>
+        </div>
+
+        <div class="text-xs sm:text-sm font-bold text-sky-200/80 flex items-center space-x-2 h-5">
+          <i class="fa-solid fa-microphone-lines text-amber-400"></i>
+          <span>聽到發音: </span>
+          <span id="heardSpokenText" class="text-amber-300 font-mono text-sm sm:text-base">「 ... 」</span>
+        </div>
+
+        <div class="w-full max-w-xl grid grid-cols-3 gap-2 sm:gap-4 mb-1">
+          <button onclick="onManualOverride(true)" 
+            class="bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-black py-3 sm:py-3.5 rounded-2xl shadow-lg border-b-4 border-emerald-800 flex items-center justify-center space-x-1.5 text-base sm:text-lg transition">
+            <i class="fa-solid fa-circle-check"></i>
+            <span>讀對了</span>
+          </button>
+
+          <button onclick="onManualOverride(false)" 
+            class="bg-rose-600 hover:bg-rose-500 active:scale-95 text-white font-black py-3 sm:py-3.5 rounded-2xl shadow-lg border-b-4 border-rose-800 flex items-center justify-center space-x-1.5 text-base sm:text-lg transition">
+            <i class="fa-solid fa-circle-xmark"></i>
+            <span>未讀到</span>
+          </button>
+
+          <button onclick="onManualOverride('skip')" 
+            class="bg-amber-500 hover:bg-amber-400 active:scale-95 text-slate-950 font-black py-3 sm:py-3.5 rounded-2xl shadow-lg border-b-4 border-amber-700 flex items-center justify-center space-x-1.5 text-base sm:text-lg transition">
+            <i class="fa-solid fa-forward"></i>
+            <span>跳過</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- MODAL 1: STAGE RESULT MODAL -->
+  <div id="resultModal" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="glass-card w-full max-w-md rounded-3xl p-6 text-center shadow-2xl border-4 border-amber-400/80 relative overflow-hidden">
+      <div id="resultBannerText" class="text-3xl sm:text-4xl font-black mb-2 text-amber-500">
+        挑戰成功! 🎉
+      </div>
+
+      <div id="resultDetailsBox" class="bg-sky-950/40 rounded-2xl p-4 my-4 text-left border border-sky-300/30 text-sky-100 text-sm sm:text-base space-y-1.5">
+      </div>
+
+      <div id="cityCelebrationBox" class="hidden bg-gradient-to-r from-amber-400 to-amber-300 rounded-2xl p-4 my-4 text-slate-950 shadow-inner flex flex-col items-center justify-center">
+        <div id="cityEmojiIcon" class="text-5xl mb-1">🗼</div>
+        <div id="cityFeatureName" class="font-black text-xl">東京：富士山與經典鐵塔</div>
+        <p class="text-xs font-bold text-amber-900 mt-1">✨ 恭喜解鎖城市紀念圖章！✨</p>
+      </div>
+
+      <!-- Word List Review Grid -->
+      <div class="text-left mt-3">
+        <p class="text-xs font-bold text-slate-600 mb-2">📋 詞語朗讀總覽 Review List:</p>
+        <div id="wordReviewGrid" class="word-review-grid"></div>
+      </div>
+
+      <button id="modalActionBtn" onclick="onResultModalAction()" 
+        class="airplane-btn w-full mt-4 bg-amber-400 hover:bg-amber-300 text-amber-950 font-black text-xl py-3.5 rounded-2xl border-2 border-amber-200">
+        繼續下一關 ➡️
+      </button>
+    </div>
+  </div>
+
+  <!-- MODAL 2: TEACHER WORD LIST EDITOR -->
+  <div id="teacherModal" class="hidden fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="glass-card w-full max-w-2xl rounded-3xl p-5 sm:p-7 text-slate-900 shadow-2xl border-4 border-amber-400 flex flex-col max-h-[90vh]">
+      <div class="flex items-center justify-between border-b-2 border-slate-200 pb-3 mb-4">
+        <div class="flex items-center space-x-2">
+          <i class="fa-solid fa-gear text-2xl text-amber-600"></i>
+          <h2 class="text-xl sm:text-2xl font-black text-slate-900">⚙️ 教師詞庫編輯器</h2>
+        </div>
+        <button onclick="closeTeacherModal()" class="text-slate-400 hover:text-slate-700 text-2xl">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="mb-4 flex items-center justify-between bg-amber-50 p-3 rounded-2xl border border-amber-200">
+        <label for="editorDestSelect" class="font-bold text-amber-950 text-sm sm:text-base flex items-center gap-1.5">
+          <span>選擇關卡詞庫:</span>
+        </label>
+        <select id="editorDestSelect" onchange="loadEditorWordsForSelectedDest()" class="bg-white border-2 border-amber-300 rounded-xl px-3 py-1.5 text-slate-900 font-bold text-sm sm:text-base outline-none focus:border-amber-500">
+          <!-- Options populated by JS -->
+        </select>
+      </div>
+
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-xs sm:text-sm font-bold text-slate-600">詞語清單 (已載入 <span id="editorItemCount" class="text-amber-600 font-black">0</span> 個)</span>
+        <button onclick="addEditorWordItem()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs sm:text-sm px-3 py-1.5 rounded-xl flex items-center gap-1 transition">
+          <i class="fa-solid fa-plus"></i>
+          <span>新增詞語</span>
+        </button>
+      </div>
+
+      <div id="editorWordInputsList" class="flex-1 overflow-y-auto space-y-2 pr-1 mb-4">
+        <!-- Input rows dynamically populated by JS -->
+      </div>
+
+      <div class="pt-3 border-t border-slate-200 flex justify-end space-x-3">
+        <button onclick="closeTeacherModal()" class="bg-slate-300 hover:bg-slate-400 text-slate-800 font-bold px-5 py-2.5 rounded-xl text-sm transition">
+          取消
+        </button>
+        <button onclick="saveTeacherWordLists()" class="bg-amber-500 hover:bg-amber-400 text-amber-950 font-black px-6 py-2.5 rounded-xl text-sm transition shadow border border-amber-300">
+          儲存變更
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 3: CURRENT STUDENT FLIGHT RECORDS -->
+  <div id="studentRecordsModal" class="hidden fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="glass-card w-full max-w-2xl rounded-3xl p-5 sm:p-7 text-slate-900 shadow-2xl border-4 border-amber-400 flex flex-col max-h-[90vh]">
+      <div class="flex items-center justify-between border-b-2 border-slate-200 pb-3 mb-4">
+        <div class="flex items-center space-x-2">
+          <i class="fa-solid fa-award text-2xl text-amber-500"></i>
+          <h2 id="studentRecordsTitle" class="text-xl sm:text-2xl font-black text-slate-900">✈️ 機長飛行紀錄</h2>
+        </div>
+        <button onclick="closeStudentRecordsModal()" class="text-slate-400 hover:text-slate-700 text-2xl">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div id="studentRecordsList" class="flex-1 overflow-y-auto space-y-3 pr-1 mb-4">
+        <!-- Records populated by JS -->
+      </div>
+
+      <div class="pt-2 border-t border-slate-200 text-right">
+        <button onclick="closeStudentRecordsModal()" class="bg-slate-700 hover:bg-slate-600 text-white font-bold px-5 py-2.5 rounded-xl text-sm transition">
+          關閉
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 4: PILOTS DIRECTORY ("機長匯集") -->
+  <div id="pilotsDirectoryModal" class="hidden fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="glass-card w-full max-w-2xl rounded-3xl p-5 sm:p-7 text-slate-900 shadow-2xl border-4 border-indigo-500 flex flex-col max-h-[90vh]">
+      <div class="flex items-center justify-between border-b-2 border-slate-200 pb-3 mb-4">
+        <div class="flex items-center space-x-2">
+          <i class="fa-solid fa-users text-2xl text-indigo-600"></i>
+          <h2 class="text-xl sm:text-2xl font-black text-slate-900">👨‍✈️ 機長匯集帳號總覽</h2>
+        </div>
+        <button onclick="closePilotsDirectoryModal()" class="text-slate-400 hover:text-slate-700 text-2xl">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div id="pilotsDirectoryList" class="flex-1 overflow-y-auto space-y-3 pr-1 mb-4">
+        <!-- Pilot accounts list populated by JS -->
+      </div>
+
+      <div class="pt-2 border-t border-slate-200 text-right">
+        <button onclick="closePilotsDirectoryModal()" class="bg-slate-700 hover:bg-slate-600 text-white font-bold px-5 py-2.5 rounded-xl text-sm transition">
+          關閉
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const DESTINATIONS = [
+      { id: 1, name: '新加坡', english: 'Singapore', landmark: '🦁 魚尾獅公園與濱海灣', coord: { x: 18.5, y: 92.5 } },
+      { id: 2, name: '曼谷', english: 'Bangkok', landmark: '🐘 金碧輝煌大皇宮', coord: { x: 14.5, y: 73.0 } },
+      { id: 3, name: '台北', english: 'Taipei', landmark: '🗼 台北101與夜市', coord: { x: 42.5, y: 61.5 } },
+      { id: 4, name: '上海', english: 'Shanghai', landmark: '🏙️ 外灘與東方明珠塔', coord: { x: 33.5, y: 44.0 } },
+      { id: 5, name: '北京', english: 'Beijing', landmark: '🏯 雄偉長城與故宮', coord: { x: 30.5, y: 18.0 } },
+      { id: 6, name: '首爾', english: 'Seoul', landmark: '🌸 南山塔與古色宮殿', coord: { x: 53.5, y: 22.0 } },
+      { id: 7, name: '濟州', english: 'Jeju', landmark: '🗿 濟州島石頭爺爺', coord: { x: 52.0, y: 41.0 } },
+      { id: 8, name: '東京', english: 'Tokyo', landmark: '🗻 富士山與東京鐵塔', coord: { x: 74.5, y: 28.5 } },
+      { id: 9, name: '大阪', english: 'Osaka', landmark: '🐙 道頓堀熱騰騰章魚燒', coord: { x: 67.0, y: 35.5 } },
+      { id: 10, name: '沖繩', english: 'Okinawa', landmark: '🌺 陽光沙灘與扶桑花', coord: { x: 52.0, y: 56.5 } }
+    ];
+
+    const DEFAULT_WORD_LISTS = {
+      1: ["哥哥", "妹妹", "姐姐", "弟弟", "別人", "朋友", "人們", "家人", "女兒", "兒子", "父母", "爸爸", "媽媽", "祖父", "祖母", "外公", "外婆", "回家"],
+      2: ["中文", "英文", "數學", "常識", "時間", "星期", "手冊", "小息", "通告", "功課", "寫字", "鉛筆", "尺子", "食物", "餐具", "詞語", "作業"],
+      3: ["老師", "校長", "同學", "學生", "班長", "操場", "課室", "黑板", "書包", "圖書", "文具", "圖畫", "校規", "課外", "開學", "學習", "樓梯", "讀書", "上課", "下課", "放學", "放假"],
+      4: ["現在", "明天", "今天", "假日", "春天", "夏天", "秋天", "冬天", "日期", "早上", "中午", "下午", "晚上", "吃飯", "做飯", "早餐", "晚飯", "起床", "睡覺", "房間"],
+      5: ["地方", "公園", "草地", "戶外", "天空", "植物", "動物", "樹木", "花兒", "葉子", "小鳥", "魚兒", "跑步", "拍球", "玩耍", "休息", "走路", "開心", "單車"],
+      6: ["門窗", "地板", "桌子", "地上", "看書", "溫習", "電視", "玩具", "午飯", "畫畫", "說話", "洗澡", "唱歌", "打掃", "遊戲", "風景"],
+      7: ["快樂", "傷心", "生氣", "口渴", "大小", "可愛", "漂亮", "乾淨", "整齊", "明亮", "溫暖", "安靜", "美味", "香甜", "喜歡", "長短"],
+      8: ["馬路", "小心", "紅燈", "綠燈", "交通", "汽車", "巴士", "的士", "火車", "眼睛", "斑馬線", "貨車", "司機", "警察", "行人", "安全", "停步", "前進", "飛快"],
+      9: ["謝謝", "再見", "早晨", "看見", "記得", "用功", "點頭", "揮手", "站立", "坐下", "清潔", "回答", "問題", "開始", "大聲", "應該", "科目", "幫助", "參加"],
+      10: ["洗臉", "刷牙", "健康", "肚子", "鼻子", "耳朵", "頭髮", "嘴巴", "自己", "生病", "毛巾", "校服", "皮鞋", "外套", "雨傘", "校車", "一起", "沒有", "以後", "原來"]
+    };
+
+    let currentPilot = { name: '', className: '' };
+    let completedDestinations = [];
+    let customWordLists = JSON.parse(JSON.stringify(DEFAULT_WORD_LISTS));
+
+    let pilotAccountsDB = {};
+
+    let activeDestId = null;
+    let currentStageIndex = 0;
+    let currentStageWords = [];
+    let currentWordIndex = 0;
+    let currentStageReviewList = [];
+    let challengeTotalTime = 0;
+
+    let timerInterval = null;
+    let stageStartTime = 0;
+    let elapsedTime = 0;
+
+    let recognition = null;
+    let isRecognizing = false;
+    let canvasAnimationId = null;
+    let isStageSuccessAnimPlaying = false;
+    let stageSuccessAnimStartTime = 0;
+
+    function handleLogin() {
+      const name = document.getElementById('studentNameInput').value.trim();
+      const className = document.getElementById('studentClassInput').value.trim();
+
+      if (!name || !className) {
+        alert('請輸入學生簡稱與班別學號！');
+        return;
+      }
+
+      currentPilot = { name, className };
+      const accountKey = `${className}_${name}`;
+
+      if (!pilotAccountsDB[accountKey]) {
+        pilotAccountsDB[accountKey] = {
+          name,
+          className,
+          completedDestinations: [],
+          records: []
+        };
+      }
+
+      completedDestinations = pilotAccountsDB[accountKey].completedDestinations;
+
+      document.getElementById('pilotDisplayName').innerText = `小機長: ${name}`;
+      document.getElementById('pilotClassDisplay').innerText = `班別學號: ${className}`;
+
+      document.getElementById('loginView').classList.add('hidden');
+      document.getElementById('mapView').classList.remove('hidden');
+
+      renderMapPins();
+      updateHeaderBadge();
+    }
+
+    function handleLogout() {
+      currentPilot = { name: '', className: '' };
+      completedDestinations = [];
+      document.getElementById('studentNameInput').value = '';
+      document.getElementById('studentClassInput').value = '';
+
+      document.getElementById('mapView').classList.add('hidden');
+      document.getElementById('gameView').classList.add('hidden');
+      document.getElementById('loginView').classList.remove('hidden');
+    }
+
+    function updateHeaderBadge() {
+      document.getElementById('destCompletedBadge').innerText = `已成功挑戰 ${completedDestinations.length} 個目的地`;
+    }
+
+    function renderMapPins() {
+      const container = document.getElementById('mapPinsContainer');
+      const svg = document.getElementById('flightPathsSvg');
+      container.innerHTML = '';
+      svg.innerHTML = '';
+
+      const hkX = 27.5;
+      const hkY = 66.5;
+
+      DESTINATIONS.forEach((dest) => {
+        const isCompleted = completedDestinations.includes(dest.id);
+        const pin = document.createElement('div');
+        pin.className = 'absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center cursor-pointer group';
+        pin.style.left = `${dest.coord.x}%`;
+        pin.style.top = `${dest.coord.y}%`;
+
+        pin.innerHTML = `
+          <div class="pin-bounce w-9 h-9 rounded-full ${isCompleted ? 'bg-emerald-500' : 'bg-sky-500'} border-2 border-white text-white flex items-center justify-center font-black text-sm shadow-lg group-hover:scale-125 transition-transform">
+            ${isCompleted ? '✓' : '✈️'}
+          </div>
+          <span class="bg-slate-900/90 text-amber-300 text-[11px] font-bold px-2.5 py-0.5 rounded-full mt-1 border border-amber-400/50 shadow whitespace-nowrap">
+            ${dest.name}
+          </span>
+        `;
+
+        pin.onclick = () => startDestinationGame(dest.id);
+        container.appendChild(pin);
+
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        path.setAttribute('x1', `${hkX}%`);
+        path.setAttribute('y1', `${hkY}%`);
+        path.setAttribute('x2', `${dest.coord.x}%`);
+        path.setAttribute('y2', `${dest.coord.y}%`);
+        path.setAttribute('stroke', isCompleted ? '#22c55e' : 'rgba(255, 255, 255, 0.6)');
+        path.setAttribute('stroke-width', '2');
+        path.setAttribute('stroke-dasharray', '6 4');
+        svg.appendChild(path);
+      });
+    }
+
+    function startDestinationGame(destId) {
+      activeDestId = destId;
+      currentStageIndex = 0;
+      currentStageReviewList = [];
+      challengeTotalTime = 0;
+
+      document.getElementById('mapView').classList.add('hidden');
+      document.getElementById('gameView').classList.remove('hidden');
+
+      setupStage(currentStageIndex);
+    }
+
+    function setupStage(stageIdx) {
+      currentStageIndex = stageIdx;
+      isStageSuccessAnimPlaying = false;
+      
+      const challengeLevel = Math.min(completedDestinations.length + 1, 10);
+      const fullList = customWordLists[challengeLevel] || DEFAULT_WORD_LISTS[challengeLevel] || DEFAULT_WORD_LISTS[1];
+
+      currentStageWords = [...fullList];
+      currentWordIndex = 0;
+
+      updateStageHeader();
+      displayCurrentWord();
+      startTimer();
+      startListening();
+      initStageCanvasAnimation();
+    }
+
+    function updateStageHeader() {
+      const stageTitles = [
+        '階段 1/3：行李托運中 🧳',
+        '階段 2/3：機艙座位體驗 ✈️',
+        '階段 3/3：降落目的地 🛬'
+      ];
+      document.getElementById('stageBadgeText').innerHTML = `
+        <i class="fa-solid fa-plane-circle-check text-amber-400"></i>
+        <span>${stageTitles[currentStageIndex]}</span>
+      `;
+    }
+
+    function displayCurrentWord() {
+      if (currentWordIndex < currentStageWords.length) {
+        document.getElementById('currentWordDisplay').innerText = currentStageWords[currentWordIndex];
+        document.getElementById('heardSpokenText').innerText = '「 ... 」';
+
+        const progressPercent = (currentWordIndex / currentStageWords.length) * 100;
+        document.getElementById('wordProgressBar').style.width = `${progressPercent}%`;
+      } else {
+        triggerStageSuccessSequence();
+      }
+    }
+
+    function handleWordMatch(isCorrect) {
+      if (isStageSuccessAnimPlaying) return;
+
+      const word = currentStageWords[currentWordIndex];
+      currentStageReviewList.push({ word, isCorrect });
+
+      currentWordIndex++;
+      if (currentWordIndex >= currentStageWords.length) {
+        document.getElementById('wordProgressBar').style.width = '100%';
+        triggerStageSuccessSequence();
+      } else {
+        displayCurrentWord();
+      }
+    }
+
+    function onManualOverride(result) {
+      if (result === 'skip') {
+        handleWordMatch(false);
+      } else {
+        handleWordMatch(result);
+      }
+    }
+
+    function startTimer() {
+      clearInterval(timerInterval);
+      stageStartTime = Date.now();
+      timerInterval = setInterval(() => {
+        if (!isStageSuccessAnimPlaying) {
+          elapsedTime = (Date.now() - stageStartTime) / 1000;
+          document.getElementById('stageTimerBadge').innerText = `⏱️ 用時: ${elapsedTime.toFixed(1)}s`;
+        }
+      }, 100);
+    }
+
+    function stopTimer() {
+      clearInterval(timerInterval);
+    }
+
+    function initStageCanvasAnimation() {
+      const canvas = document.getElementById('stageCanvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+
+      canvas.width = canvas.parentElement.clientWidth;
+      canvas.height = canvas.parentElement.clientHeight;
+
+      let frameCount = 0;
+
+      // STAGE 1 ANIMATIONS (Cargo Hold & Conveyor Belt)
+      function renderStage1(animTime) {
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Airplane Cargo Interior Outline
+        ctx.strokeStyle = '#334155';
+        ctx.lineWidth = 4;
+        ctx.strokeRect(20, 20, canvas.width - 40, canvas.height - 40);
+
+        // Conveyor Belt Base
+        const beltY = canvas.height * 0.65;
+        ctx.fillStyle = '#475569';
+        ctx.fillRect(30, beltY, canvas.width - 60, 20);
+
+        // Conveyor Rollers (subtle movement)
+        ctx.fillStyle = '#94a3b8';
+        const rollerOffset = (frameCount * 1.5) % 30;
+        for (let x = 30 + rollerOffset; x < canvas.width - 60; x += 30) {
+          ctx.beginPath();
+          ctx.arc(x, beltY + 10, 6, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        if (!isStageSuccessAnimPlaying) {
+          // Subtle moving suitcases
+          const luggageEmojis = ['🧳', '💼', '📦', '🧳'];
+          luggageEmojis.forEach((emoji, idx) => {
+            const suitcaseX = ((frameCount * 1.2) + (idx * 160)) % (canvas.width - 100) + 40;
+            ctx.font = '36px sans-serif';
+            ctx.fillText(emoji, suitcaseX, beltY - 10);
+          });
+        } else {
+          // Success Animation (Worker appears in middle and claps)
+          ctx.font = '60px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText('🧑‍✈️', canvas.width / 2, beltY - 15);
+          
+          // Clapping emoji bounce effect
+          const clapBounce = Math.sin(animTime * 10) * 8;
+          ctx.font = '45px sans-serif';
+          ctx.fillText('👏', canvas.width / 2 - 50, beltY - 30 + clapBounce);
+          ctx.fillText('👏', canvas.width / 2 + 50, beltY - 30 + clapBounce);
+          
+          ctx.fillStyle = '#f59e0b';
+          ctx.font = 'bold 22px sans-serif';
+          ctx.fillText('行李順利托運完成！', canvas.width / 2, 60);
+          ctx.textAlign = 'left';
+        }
+      }
+
+      // STAGE 2 ANIMATIONS (Cabin Aisle View)
+      function renderStage2(animTime) {
+        ctx.fillStyle = '#1e293b';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Cabin Carpet Aisle
+        ctx.fillStyle = '#334155';
+        ctx.fillRect(canvas.width / 2 - 40, 0, 80, canvas.height);
+
+        // Seat Rows
+        const rowHeight = 55;
+        const totalRows = 4;
+        const startY = 15;
+
+        for (let row = 0; row < totalRows; row++) {
+          const y = startY + row * (rowHeight + 15);
+
+          ctx.fillStyle = '#0284c7';
+          // Left Seats
+          ctx.beginPath();
+          ctx.roundRect(canvas.width / 2 - 150, y, 45, rowHeight, 8);
+          ctx.roundRect(canvas.width / 2 - 95, y, 45, rowHeight, 8);
+          // Right Seats
+          ctx.roundRect(canvas.width / 2 + 50, y, 45, rowHeight, 8);
+          ctx.roundRect(canvas.width / 2 + 105, y, 45, rowHeight, 8);
+          ctx.fill();
+
+          // Headrests
+          ctx.fillStyle = '#bae6fd';
+          ctx.fillRect(canvas.width / 2 - 142, y + 4, 28, 10);
+          ctx.fillRect(canvas.width / 2 - 87, y + 4, 28, 10);
+          ctx.fillRect(canvas.width / 2 + 58, y + 4, 28, 10);
+          ctx.fillRect(canvas.width / 2 + 113, y + 4, 28, 10);
+
+          if (isStageSuccessAnimPlaying) {
+            // Seated smiling passengers
+            ctx.font = '24px sans-serif';
+            ctx.fillText('😊', canvas.width / 2 - 140, y + 42);
+            ctx.fillText('😄', canvas.width / 2 - 85, y + 42);
+            ctx.fillText('😁', canvas.width / 2 + 60, y + 42);
+            ctx.fillText('😊', canvas.width / 2 + 115, y + 42);
+          }
+        }
+
+        if (!isStageSuccessAnimPlaying) {
+          // Subtle passengers walking down aisle
+          const passY = ((frameCount * 1.2) % (canvas.height + 40)) - 20;
+          ctx.font = '32px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText('🚶', canvas.width / 2, passY);
+          ctx.textAlign = 'left';
+        } else {
+          ctx.fillStyle = '#38bdf8';
+          ctx.font = 'bold 22px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText('乘客已全部就座！', canvas.width / 2, canvas.height - 20);
+          ctx.textAlign = 'left';
+        }
+      }
+
+      // STAGE 3 ANIMATIONS (Cockpit View & Runway Takeoff)
+      function renderStage3(animTime) {
+        if (!isStageSuccessAnimPlaying) {
+          // Pilot Perspective - Runway
+          ctx.fillStyle = '#38bdf8'; // Sky top
+          ctx.fillRect(0, 0, canvas.width, canvas.height * 0.45);
+
+          ctx.fillStyle = '#334155'; // Tarmac Runway
+          ctx.fillRect(0, canvas.height * 0.45, canvas.width, canvas.height * 0.55);
+
+          // Moving Runway Center Centerlines
+          ctx.strokeStyle = '#f59e0b';
+          ctx.lineWidth = 6;
+          const stripeOffset = (frameCount * 4) % 60;
+          for (let y = canvas.height * 0.45 + stripeOffset; y < canvas.height; y += 60) {
+            ctx.beginPath();
+            ctx.moveTo(canvas.width / 2, y);
+            ctx.lineTo(canvas.width / 2, y + 30);
+            ctx.stroke();
+          }
+
+          // Cockpit windshield frame
+          ctx.fillStyle = 'rgba(15, 23, 42, 0.7)';
+          ctx.beginPath();
+          ctx.moveTo(0, 0);
+          ctx.lineTo(canvas.width * 0.15, canvas.height * 0.2);
+          ctx.lineTo(canvas.width * 0.85, canvas.height * 0.2);
+          ctx.lineTo(canvas.width, 0);
+          ctx.fill();
+        } else {
+          // Success Animation - Plane takes off high into sky
+          const skyProgress = Math.min(animTime / 3.5, 1);
+
+          // Sky gradient shifting to high altitude deep sky
+          const skyGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+          skyGrad.addColorStop(0, '#0284c7');
+          skyGrad.addColorStop(1, '#38bdf8');
+          ctx.fillStyle = skyGrad;
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+          // Clouds drifting down as plane climbs higher
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+          const cloudY = (skyProgress * canvas.height * 1.5) % canvas.height;
+          ctx.beginPath();
+          ctx.arc(canvas.width * 0.2, cloudY, 40, 0, Math.PI * 2);
+          ctx.arc(canvas.width * 0.25, cloudY - 10, 50, 0, Math.PI * 2);
+          ctx.arc(canvas.width * 0.8, cloudY + 50, 45, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Plane Climbing
+          const planeX = canvas.width * 0.2 + (skyProgress * canvas.width * 0.6);
+          const planeY = canvas.height * 0.75 - (skyProgress * canvas.height * 0.5);
+
+          ctx.save();
+          ctx.translate(planeX, planeY);
+          ctx.rotate(-Math.PI / 8); // Tilt pitch up
+          ctx.font = '65px sans-serif';
+          ctx.fillText('✈️', 0, 0);
+          ctx.restore();
+
+          ctx.fillStyle = '#ffffff';
+          ctx.font = 'bold 24px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText('順利起飛！飛向高空 ☁️', canvas.width / 2, 50);
+          ctx.textAlign = 'left';
+        }
+      }
+
+      function animate() {
+        frameCount++;
+        const animTime = isStageSuccessAnimPlaying ? (Date.now() - stageSuccessAnimStartTime) / 1000 : 0;
+
+        if (currentStageIndex === 0) {
+          renderStage1(animTime);
+        } else if (currentStageIndex === 1) {
+          renderStage2(animTime);
+        } else {
+          renderStage3(animTime);
+        }
+
+        if (isStageSuccessAnimPlaying && animTime >= 3.5) {
+          completeCurrentStage();
+          return;
+        }
+
+        canvasAnimationId = requestAnimationFrame(animate);
+      }
+
+      if (canvasAnimationId) cancelAnimationFrame(canvasAnimationId);
+      animate();
+    }
+
+    function triggerStageSuccessSequence() {
+      if (isStageSuccessAnimPlaying) return;
+      stopTimer();
+      stopListening();
+
+      isStageSuccessAnimPlaying = true;
+      stageSuccessAnimStartTime = Date.now();
+    }
+
+    function completeCurrentStage() {
+      stopTimer();
+      stopListening();
+      if (canvasAnimationId) cancelAnimationFrame(canvasAnimationId);
+
+      challengeTotalTime += elapsedTime;
+
+      const isFinalStage = currentStageIndex === 2;
+      const modal = document.getElementById('resultModal');
+      const banner = document.getElementById('resultBannerText');
+      const details = document.getElementById('resultDetailsBox');
+      const cityBox = document.getElementById('cityCelebrationBox');
+      const actionBtn = document.getElementById('modalActionBtn');
+
+      banner.innerText = isFinalStage ? '目的地抵達! 🎉' : '階段完成! ✈️';
+
+      details.innerHTML = `
+        <p><strong>關卡進度:</strong> 階段 ${currentStageIndex + 1} / 3</p>
+        <p><strong>階段用時:</strong> ${elapsedTime.toFixed(1)} 秒</p>
+        <p><strong>完成詞語:</strong> ${currentStageWords.length} 個</p>
+      `;
+
+      if (isFinalStage) {
+        if (!completedDestinations.includes(activeDestId)) {
+          completedDestinations.push(activeDestId);
+        }
+        updateHeaderBadge();
+
+        const destObj = DESTINATIONS.find(d => d.id === activeDestId);
+        document.getElementById('cityEmojiIcon').innerText = destObj.landmark.split(' ')[0] || '🌆';
+        document.getElementById('cityFeatureName').innerText = `${destObj.name}：${destObj.landmark}`;
+        cityBox.classList.remove('hidden');
+        actionBtn.innerText = '返回航線地圖 🗺️';
+
+        const accountKey = `${currentPilot.className}_${currentPilot.name}`;
+        if (pilotAccountsDB[accountKey]) {
+          const totalWords = currentStageReviewList.length;
+          const correctWords = currentStageReviewList.filter(item => item.isCorrect).length;
+          const accuracy = totalWords > 0 ? Math.round((correctWords / totalWords) * 100) : 0;
+
+          pilotAccountsDB[accountKey].records.push({
+            destName: destObj.name,
+            timeSpent: challengeTotalTime.toFixed(1),
+            correctWords,
+            totalWords,
+            accuracy,
+            date: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          });
+        }
+      } else {
+        cityBox.classList.add('hidden');
+        actionBtn.innerText = '進入下一階段 ➡️';
+      }
+
+      renderWordReviewGrid();
+      modal.classList.remove('hidden');
+    }
+
+    function renderWordReviewGrid() {
+      const grid = document.getElementById('wordReviewGrid');
+      grid.innerHTML = '';
+
+      currentStageReviewList.forEach(item => {
+        const card = document.createElement('div');
+        card.className = `word-review-card ${item.isCorrect ? 'correct' : 'incorrect'}`;
+        card.innerHTML = `
+          <div class="word-status-badge ${item.isCorrect ? 'badge-correct' : 'badge-incorrect'}">
+            ${item.isCorrect ? '✓' : '✕'}
+          </div>
+          <span class="text-base font-black text-slate-800 mt-1">${item.word}</span>
+        `;
+        grid.appendChild(card);
+      });
+    }
+
+    function onResultModalAction() {
+      document.getElementById('resultModal').classList.add('hidden');
+      if (currentStageIndex < 2) {
+        setupStage(currentStageIndex + 1);
+      } else {
+        exitToMap();
+      }
+    }
+
+    function exitToMap() {
+      stopTimer();
+      stopListening();
+      if (canvasAnimationId) cancelAnimationFrame(canvasAnimationId);
+
+      document.getElementById('gameView').classList.add('hidden');
+      document.getElementById('mapView').classList.remove('hidden');
+      renderMapPins();
+    }
+
+    function openStudentRecordsModal(accountKeyOverride = null) {
+      const accountKey = accountKeyOverride || `${currentPilot.className}_${currentPilot.name}`;
+      const pilotData = pilotAccountsDB[accountKey];
+
+      const titleEl = document.getElementById('studentRecordsTitle');
+      const listEl = document.getElementById('studentRecordsList');
+
+      if (!pilotData) {
+        titleEl.innerText = '✈️ 機長飛行紀錄';
+        listEl.innerHTML = '<p class="text-slate-500 font-bold text-center py-6">尚無飛行紀錄</p>';
+      } else {
+        titleEl.innerText = `✈️ ${pilotData.name} 機長的飛行紀錄 (${pilotData.className})`;
+
+        if (pilotData.records.length === 0) {
+          listEl.innerHTML = '<p class="text-slate-500 font-bold text-center py-6">目前尚未成功完成任何目的地挑戰。</p>';
+        } else {
+          listEl.innerHTML = '';
+          pilotData.records.forEach((rec, idx) => {
+            const card = document.createElement('div');
+            card.className = 'bg-slate-100 rounded-2xl p-4 border border-slate-200 shadow-sm flex items-center justify-between';
+            card.innerHTML = `
+              <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-full bg-amber-400 text-slate-900 font-black flex items-center justify-center text-base">
+                  #${idx + 1}
+                </div>
+                <div>
+                  <h4 class="font-black text-slate-800 text-base">目的地：${rec.destName}</h4>
+                  <p class="text-xs text-slate-500 font-bold">⏱️ 總用時: <span class="text-amber-600">${rec.timeSpent} 秒</span> | 時間: ${rec.date}</p>
+                </div>
+              </div>
+              <div class="text-right">
+                <div class="text-lg font-black ${rec.accuracy >= 80 ? 'text-emerald-600' : 'text-amber-600'}">
+                  ${rec.accuracy}%
+                </div>
+                <p class="text-xs font-bold text-slate-500">正確率 (${rec.correctWords}/${rec.totalWords} 詞)</p>
+              </div>
+            `;
+            listEl.appendChild(card);
+          });
+        }
+      }
+
+      document.getElementById('studentRecordsModal').classList.remove('hidden');
+    }
+
+    function closeStudentRecordsModal() {
+      document.getElementById('studentRecordsModal').classList.add('hidden');
+    }
+
+    function openPilotsDirectoryModal() {
+      const listEl = document.getElementById('pilotsDirectoryList');
+      const keys = Object.keys(pilotAccountsDB);
+
+      if (keys.length === 0) {
+        listEl.innerHTML = '<p class="text-slate-500 font-bold text-center py-6">目前尚未有登入的機長紀錄。</p>';
+      } else {
+        listEl.innerHTML = '';
+        keys.forEach(key => {
+          const pilot = pilotAccountsDB[key];
+          const completedCount = pilot.completedDestinations.length;
+
+          const card = document.createElement('div');
+          card.className = 'bg-slate-100 hover:bg-slate-200 rounded-2xl p-4 border border-slate-300 shadow-sm flex items-center justify-between cursor-pointer transition';
+          card.onclick = () => {
+            closePilotsDirectoryModal();
+            openStudentRecordsModal(key);
+          };
+
+          card.innerHTML = `
+            <div class="flex items-center space-x-3">
+              <div class="w-11 h-11 rounded-full bg-indigo-600 text-white font-black flex items-center justify-center text-xl shadow">
+                ✈️
+              </div>
+              <div>
+                <h4 class="font-black text-slate-900 text-base">${pilot.name} <span class="text-xs font-bold text-indigo-600">(${pilot.className})</span></h4>
+                <p class="text-xs text-slate-500 font-bold">點擊檢視完整朗讀紀錄及正確率</p>
+              </div>
+            </div>
+            <div class="text-right">
+              <span class="bg-amber-100 text-amber-800 text-xs font-black px-3 py-1 rounded-full border border-amber-300">
+                ⭐ 已挑戰 ${completedCount} 個目的地
+              </span>
+            </div>
+          `;
+          listEl.appendChild(card);
+        });
+      }
+
+      document.getElementById('pilotsDirectoryModal').classList.remove('hidden');
+    }
+
+    function closePilotsDirectoryModal() {
+      document.getElementById('pilotsDirectoryModal').classList.add('hidden');
+    }
+
+    function openTeacherModal() {
+      const select = document.getElementById('editorDestSelect');
+      select.innerHTML = '';
+
+      for (let i = 1; i <= DESTINATIONS.length; i++) {
+        const opt = document.createElement('option');
+        opt.value = i;
+        opt.innerText = `第 ${i} 次挑戰詞庫`;
+        select.appendChild(opt);
+      }
+
+      const defaultSequence = Math.min(completedDestinations.length + 1, DESTINATIONS.length);
+      select.value = defaultSequence;
+      loadEditorWordsForSelectedDest();
+      document.getElementById('teacherModal').classList.remove('hidden');
+    }
+
+    function closeTeacherModal() {
+      document.getElementById('teacherModal').classList.add('hidden');
+    }
+
+    function loadEditorWordsForSelectedDest() {
+      const destId = document.getElementById('editorDestSelect').value;
+      const words = customWordLists[destId] || DEFAULT_WORD_LISTS[destId] || [];
+      const container = document.getElementById('editorWordInputsList');
+      container.innerHTML = '';
+
+      words.forEach((w, idx) => {
+        const div = document.createElement('div');
+        div.className = 'flex items-center space-x-2';
+        div.innerHTML = `
+          <span class="text-xs font-bold text-slate-400 w-6">${idx + 1}.</span>
+          <input type="text" value="${w}" class="editor-word-input flex-1 px-3 py-1.5 border border-slate-300 rounded-lg text-sm font-bold text-slate-800 outline-none focus:border-amber-500">
+          <button onclick="this.parentElement.remove(); updateEditorItemCount();" class="text-rose-500 hover:text-rose-700 px-2 py-1">
+            <i class="fa-solid fa-trash-can"></i>
+          </button>
+        `;
+        container.appendChild(div);
+      });
+
+      updateEditorItemCount();
+    }
+
+    function addEditorWordItem() {
+      const container = document.getElementById('editorWordInputsList');
+      const count = container.children.length;
+      if (count >= 30) {
+        alert('最多只能新增 30 個詞語！');
+        return;
+      }
+
+      const div = document.createElement('div');
+      div.className = 'flex items-center space-x-2';
+      div.innerHTML = `
+        <span class="text-xs font-bold text-slate-400 w-6">${count + 1}.</span>
+        <input type="text" value="" placeholder="輸入詞語" class="editor-word-input flex-1 px-3 py-1.5 border border-slate-300 rounded-lg text-sm font-bold text-slate-800 outline-none focus:border-amber-500">
+        <button onclick="this.parentElement.remove(); updateEditorItemCount();" class="text-rose-500 hover:text-rose-700 px-2 py-1">
+          <i class="fa-solid fa-trash-can"></i>
+        </button>
+      `;
+      container.appendChild(div);
+      updateEditorItemCount();
+    }
+
+    function updateEditorItemCount() {
+      const count = document.querySelectorAll('.editor-word-input').length;
+      document.getElementById('editorItemCount').innerText = count;
+    }
+
+    function saveTeacherWordLists() {
+      const destId = document.getElementById('editorDestSelect').value;
+      const inputs = document.querySelectorAll('.editor-word-input');
+      const newWords = Array.from(inputs).map(i => i.value.trim()).filter(w => w.length > 0);
+
+      if (newWords.length < 10) {
+        alert('每個關卡最少需要 10 個詞語！');
+        return;
+      }
+
+      customWordLists[destId] = newWords;
+      alert(`已成功儲存關卡 ${destId} 的詞庫 (${newWords.length} 個詞語)！`);
+      closeTeacherModal();
+    }
+
+    function initSpeechRecognition() {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        console.warn('Web Speech API is not supported in this browser.');
+        const micLabel = document.getElementById('micStatusLabel');
+        if (micLabel) micLabel.innerText = '語音辨識不支援 (使用手動按鈕)';
+        return;
+      }
+
+      recognition = new SpeechRecognition();
+      recognition.lang = 'zh-HK';
+      recognition.continuous = true;
+      recognition.interimResults = true;
+
+      recognition.onresult = (event) => {
+        let transcript = '';
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          transcript += event.results[i][0].transcript;
+        }
+        transcript = transcript.trim();
+        const heardEl = document.getElementById('heardSpokenText');
+        if (heardEl) heardEl.innerText = `「 ${transcript} 」`;
+
+        const targetWord = currentStageWords[currentWordIndex];
+        if (targetWord && transcript.includes(targetWord)) {
+          handleWordMatch(true);
+        }
+      };
+
+      recognition.onerror = (event) => {
+        console.warn('Speech recognition error:', event.error);
+      };
+
+      recognition.onend = () => {
+        if (isRecognizing) {
+          try { recognition.start(); } catch (e) {}
+        }
+      };
+    }
+
+    function startListening() {
+      if (!recognition) return;
+      isRecognizing = true;
+      try {
+        recognition.start();
+        const micDot = document.getElementById('micDot');
+        if (micDot) micDot.className = 'w-3 h-3 rounded-full bg-emerald-500 pulse-mic';
+        const micLabel = document.getElementById('micStatusLabel');
+        if (micLabel) micLabel.innerText = '廣東話辨識中...';
+      } catch (e) {
+        console.warn('Recognition start error:', e);
+      }
+    }
+
+    function stopListening() {
+      if (!recognition) return;
+      isRecognizing = false;
+      try {
+        recognition.stop();
+        const micDot = document.getElementById('micDot');
+        if (micDot) micDot.className = 'w-3 h-3 rounded-full bg-slate-400';
+        const micLabel = document.getElementById('micStatusLabel');
+        if (micLabel) micLabel.innerText = '語音辨識已暫停';
+      } catch (e) {}
+    }
+
+    window.onload = function() {
+      initSpeechRecognition();
+    };
+  </script>
+</body>
+</html>
